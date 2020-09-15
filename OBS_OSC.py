@@ -24,7 +24,7 @@ OBS_OSC_AUTO_START = 1
 #########################################
 #
 #   This script responds to OSC messages received from port OBS_OSC_PORT
-#   in OSCListener's receivedOSC() method by calling the appropriate
+#   in OSCListener's dispatch_message() method by calling the appropriate
 #   functions from obspython
 #
 #   Note:
@@ -101,13 +101,13 @@ OBS_OSC_AUTO_START = 1
 #   OSCListener
 #       implements basic OSC UDP receiving and parsing
 #
-#   startListening(port)
+#   start_listening(port)
 #       starts a thread that listenes for UDP packets on the specified port
 #
-#   stopListening()
+#   stop_listening()
 #       terminates the listen loop/thread
 #
-#   receivedOSC()
+#   dispatch_message()
 #       is called when an OSC message is received, after
 #       its addressPattern and args[] are extracted
 #       obspython methods are called based on the addressPattern
@@ -117,16 +117,16 @@ OBS_OSC_AUTO_START = 1
 class OSCListener:
     
     def __init__(self):
-        self.listen_thread = None
+        self.listen_thread = None 
 
 #########################################
 #
-#   startListening creates the listening socket
+#   start_listening creates the listening socket
 #   and creates a thread that runs the listen() method
 #
 #########################################
     
-    def startListening(self, port):
+    def start_listening(self, port):
         self.udpsocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.udpsocket.bind(('',port))
         self.udpsocket.setblocking(False)
@@ -139,11 +139,11 @@ class OSCListener:
 
 #########################################
 #
-#   stopListening sets a flag which will cause the listen loop to end on the next pass
+#   stop_listening sets a flag which will cause the listen loop to end on the next pass
 #
 #########################################
             
-    def stopListening(self):
+    def stop_listening(self):
         self.listening = False
         self.udpsocket.close()
         self.udpsocket = None
@@ -152,7 +152,7 @@ class OSCListener:
 #
 #   listen contains a loop that runs while the self.listening flag is True
 #   listen uses select to determine if there is data available from the port
-#   if there is, packetReceived is called
+#   if there is, packet_received is called
 #   if not, the thread sleeps for a tenth of a second
 #
 #########################################
@@ -166,7 +166,7 @@ class OSCListener:
                 if ( len(inputready) == 1 ):
                     self.data,addr = self.udpsocket.recvfrom(256)
                     self.msglen = len(self.data)
-                    self.packetReceived()
+                    self.packet_received()
                 else:
                     time.sleep(0.1)
             else:
@@ -176,20 +176,20 @@ class OSCListener:
 
 #########################################
 #
-#   packetReceived
-#   calls processMessageAt for each complete OSC message
+#   packet_received
+#   calls process_message_at for each complete OSC message
 #   contained in the packet
 #
 #########################################
     
-    def packetReceived(self):
+    def packet_received(self):
         dataindex = 0
         while ( (dataindex >= 0 ) and ( dataindex < self.msglen ) ):
-            dataindex = self.processMessageAt(dataindex);
+            dataindex = self.process_message_at(dataindex);
 
 #########################################
 #
-#   processMessageAt
+#   process_message_at
 #   extracts the addressPattern and argument list from the OSC message
 #
 #   currently the only supported arguments are floats and integers and strings
@@ -198,20 +198,20 @@ class OSCListener:
 #
 #########################################
 
-    def processMessageAt(self, si):
+    def process_message_at(self, si):
         oi = 0;
         dl = 0;
-        zl = self.nextZero(si)
+        zl = self.next_zero(si)
         
         #insure that string will terminate with room for 4 bytes of type definition
         if zl + 4 < self.msglen: 
-            addressPattern = self.stringFrom(si)
+            addressPattern = self.string_from_index(si)
             if addressPattern.startswith('/'):
                 # determine the current index for the type character
-                tl = self.nextIndexForString(addressPattern,si)
+                tl = self.next_index_for_string(addressPattern,si)
                 
                 # determine the current index for the data location
-                dl = self.nextIndexForIndex(self.nextZero(tl))
+                dl = self.next_index_for_index(self.next_zero(tl))
                 
                 # if there's space for at least one argument, start a loop extracting
                 # arguments defined in the type string an adding them to the args list
@@ -231,11 +231,11 @@ class OSCListener:
                             a = struct.unpack_from('>i', self.data, dl)
                             args.append(int(a[0]))
                         elif self.data[tl] == ord('s'):
-                            es = self.nextZero(dl)
+                            es = self.next_zero(dl)
                             if es <= self.msglen:
-                                a = self.stringFrom(dl)
+                                a = self.string_from_index(dl)
                                 args.append(a)
-                                dl = self.nextIndexForIndex(es)
+                                dl = self.next_index_for_index(es)
                             else:
                                 done = True
                                 oi = -1
@@ -244,12 +244,12 @@ class OSCListener:
                             oi = -1
                         tl += 1
                     
-                    # when done with the argument extraction loop, call receivedOSC
-                    self.receivedOSC(addressPattern, args)
+                    # when done with the argument extraction loop, call dispatch_message
+                    self.dispatch_message(addressPattern, args)
 
                 else: # <- no arguments but an address pattern
                     oi = -1
-                    self.receivedOSC(addressPattern, [])
+                    self.dispatch_message(addressPattern, [])
         else:
             oi = -1
             
@@ -260,12 +260,12 @@ class OSCListener:
 
 #########################################
 #
-#   nextZero
+#   next_zero
 #   searches for the next null character in the data starting at index si
 #
 #########################################
         
-    def nextZero(self, si):
+    def next_zero(self, si):
         i = si
         notfound = True
         s = ''
@@ -278,35 +278,35 @@ class OSCListener:
 
 #########################################
 #
-#   nextIndexForString
+#   next_index_for_string
 #   determines a 4 byte padded index for the
 #   length of the string starting from si
 #
 #########################################
         
-    def nextIndexForString(self, s, start):
+    def next_index_for_string(self, s, start):
         ml = math.trunc(len(s) / 4) + 1;
         return start + (ml*4);
         
 #########################################
 #
-#   nextIndexForIndex 
+#   next_index_for_index 
 #   determines a 4 byte padded index starting from i
 #
 #########################################
         
-    def nextIndexForIndex(self, i):
+    def next_index_for_index(self, i):
         ml = math.trunc(i / 4) + 1;
         return ml*4;
 
 #########################################
 #
-#   stringFrom
+#   string_from_index
 #   extracts a null terminated string starting at index si
 #
 #########################################
         
-    def stringFrom(self, si):
+    def string_from_index(self, si):
         i = si
         noterm = True
         s = ''
@@ -317,87 +317,168 @@ class OSCListener:
                 s +=  chr(self.data[i])
                 i += 1
         return s
+ 
+ #########################################
+#
+#   check_arg_one()
+#       Check for a single float argument equal to 1.0.
+#
+#       used for actions controlled by a push button
+#       that sends 1.0 when pressed
+#       0.0 when released
+#
+#########################################
+       
+    def check_arg_one(self, args):
+        if len(args) == 1:
+            if args[0] == 1.0:
+                return True
+        return False
 
 #########################################
 #
-#  receivedOSC
+#  dispatch_message
 #  called when OSC Message is received and processed
 #
 #########################################
 
-    def receivedOSC(self, addressPattern, args):
+    def dispatch_message(self, addressPattern, args):
         # break addressPattern into parts
         parts = addressPattern.split('/')
                
         if len(parts) > 2:
-            if parts[1] == "obs":
-    
+            if parts[1] == "obs":                       #/obs/...
                 
-                if  parts[2] == "source":
-                    if len(parts) == 4:
-                        if  parts[3] == "volume":
-                            if len(args) == 2:
-                                source_volume(args[0], args[1])
-                    if len(parts) == 5:
-                        if  parts[4] == "volume":
-                            if len(args) == 1:
-                                source_volume(parts[3], args[0])
-                        
-                # these messages require 1.0 float argument
-                # to accomodate a push button that sends 1.0 when pressed,
-                # and 0.0 when released
-                elif len(args) == 1:
-                    if args[0] == 1.0:
-                        if parts[2] == "transition":
-                            if len(parts) == 4: 
-                                if parts[3] == "start":
-                                    transition()
-                            elif len(parts) == 5:
-                                if parts[4] == "start":
-                                    transition(int(parts[3])-1)
-                                elif parts[4] == "select":
-                                    setTransition(int(parts[3])-1)
-                        
-                        elif parts[2] == "scene":
-                            if len(parts) == 5:
-                                if parts[4] == "preview":       # /obs/scene/n/preview
-                                    setPreview(int(parts[3])-1)
-                                elif parts[4] == "start":       # /obs/scene/n/start
-                                    setPreview(int(parts[3])-1)
-                                    time.sleep(0.2)
-                                    transition()
-                                elif parts[4] == "go":          # /obs/scene/n/go
-                                    setPreview(int(parts[3])-1)
-                                    time.sleep(0.2)
-                                    go()
-                            elif len(parts) == 7:
-                                if parts[4] == "transition":
-                                    if parts[6] == "start":
-                                        setPreview(int(parts[3])-1)
-                                        time.sleep(0.2)
-                                        transition(int(parts[5])-1)
-                                    elif parts[6] == "go":
-                                        setPreview(int(parts[3])-1)
-                                        time.sleep(0.2)
-                                        go(int(parts[5])-1)
-                        
-                        elif parts[2] == "go":       # /obs/go
-                            go()
-                        
-                        elif parts[2] == "recording":
-                            if len(parts) == 4:
-                                if parts[3] == "start":       # /obs/recording/start
-                                    obs.obs_frontend_recording_start()
-                                if parts[3] == "stop":       # /obs/recording/stop
-                                    obs.obs_frontend_recording_stop()
-                                    
-                        elif parts[2] == "streaming":
-                            if len(parts) == 4:
-                                if parts[3] == "start":       # /obs/streaming/start
-                                    obs.obs_frontend_streaming_start()
-                                if parts[3] == "stop":       # /obs/streaming/stop
-                                    obs.obs_frontend_streaming_stop()
-                                
+                if  parts[2] == "source":               # /obs/source/...
+                    self.dispatch_obs_source(parts, args)
+                
+                elif parts[2] == "transition":          # /obs/transition/...
+                    self.dispatch_obs_transition(parts, args)
+                
+                elif parts[2] == "scene":               # /obs/scene/...
+                    self.dispatch_obs_scene(parts, args)
+                
+                elif parts[2] == "go":                   # /obs/go
+                    self.dispatch_obs_go(parts, args)
+                
+                elif parts[2] == "recording":            # /obs/recording/...
+                    self.dispatch_obs_recording(parts, args)
+                
+                elif parts[2] == "streaming":            # /obs/streaming/...
+                    self.dispatch_obs_streaming(parts, args)
+
+#########################################
+#
+#  dispatch_obs_source(self, parts, args)
+#  /obs/source/...
+#
+#########################################
+
+    def dispatch_obs_source(self, parts, args): 
+        if len(parts) == 4:
+            if  parts[3] == "volume":       # /obs/source/volume [NN, V.V]
+                if len(args) == 2:
+                    source_volume(args[0], args[1])
+        if len(parts) == 5:
+            if  parts[4] == "volume":       # /obs/source/NN/volume [V.V]
+                if len(args) == 1:
+                    source_volume(parts[3], args[0]) 
+    
+#########################################
+#
+#  dispatch_obs_transition(self, parts, args)
+#  /obs/transition/...
+#
+#########################################                   
+    def dispatch_obs_transition(self, parts, args):
+        if len(parts) == 4: 
+            if parts[3] == "start":         # /obs/transition/start [1.0]
+                if self.check_arg_one(args):
+                    transition()
+            elif parts[3] == "duration":    # /obs/transition/duration [DD]
+                    set_transition_duration(int(args[0]))
+    
+        if len(parts) == 5:                 # /obs/transition/NN/start [1.0]
+            if parts[4] == "start":
+                if self.check_arg_one(args):
+                    transition(int(parts[3])-1)
+            elif parts[4] == "select":      # /obs/transition/NN/select [1.0]
+                if self.check_arg_one(args):    
+                    set_transition(int(parts[3])-1)
+            elif parts[4] == "duration":   # /obs/transition/NN/duration [DD]
+                set_transition_duration(int(args[0]), int(parts[3])-1)
+            elif parts[3] == "duration":   # /obs/transition/duration/DD [1.0]
+                if self.check_arg_one(args): 
+                    set_transition_duration(int(parts[4]))
+    
+#########################################
+#
+#  dispatch_obs_scene(self, parts, args)
+#  /obs/scene/...
+#
+#########################################                   
+    def dispatch_obs_scene(self, parts, args):
+        if self.check_arg_one(args):
+            if len(parts) == 5:
+                if parts[4] == "preview":       # /obs/scene/n/preview
+                    set_preview(int(parts[3])-1)
+                elif parts[4] == "start":       # /obs/scene/n/start
+                    set_preview(int(parts[3])-1)
+                    time.sleep(0.2)
+                    transition()
+                elif parts[4] == "go":          # /obs/scene/n/go
+                    set_preview(int(parts[3])-1)
+                    time.sleep(0.2)
+                    go()
+            elif len(parts) == 7:
+                if parts[4] == "transition":
+                    if parts[6] == "start":
+                        set_preview(int(parts[3])-1)
+                        time.sleep(0.2)
+                        transition(int(parts[5])-1)
+                    elif parts[6] == "go":
+                        set_preview(int(parts[3])-1)
+                        time.sleep(0.2)
+                        go(int(parts[5])-1)
+    
+#########################################
+#
+#  dispatch_obs_go(self, parts, args)
+#  /obs/go [1.0]
+#
+#########################################                   
+    def dispatch_obs_go(self, parts, args):
+        if self.check_arg_one(args):
+            go()
+            
+#########################################
+#
+#  dispatch_obs_recording(self, parts, args)
+#  /obs/recording/...
+#
+#########################################                   
+    def dispatch_obs_recording(self, parts, args):
+        if self.check_arg_one(args):
+            if len(parts) == 4:
+                if parts[3] == "start":       # /obs/recording/start
+                    obs.obs_frontend_recording_start()
+                if parts[3] == "stop":       # /obs/recording/stop
+                    obs.obs_frontend_recording_stop()
+    
+#########################################
+#
+#  dispatch_obs_streaming(self, parts, args)
+#  /obs/streaming/...
+#
+#########################################                   
+    def dispatch_obs_streaming(self, parts, args):
+        if self.check_arg_one(args):
+            if len(parts) == 4:
+                if parts[3] == "start":       # /obs/streaming/start
+                    obs.obs_frontend_streaming_start()
+                if parts[3] == "stop":       # /obs/streaming/stop
+                    obs.obs_frontend_streaming_stop()            
+
 ############################################
 #^^^^^^^^^^ end class OSCListener ^^^^^^^^^^
 #
@@ -409,27 +490,45 @@ oscin = None
 
 #########################################
 #
-#  setPreview(idx)
+#  set_preview(idx)
 #  sets the OBS preview to scene with index idx if it exists
 #
 #########################################
 
-def setPreview(idx):
+def set_preview(idx):
     scenes = obs.obs_frontend_get_scenes()
     if idx < len(scenes) and idx >= 0:
         obs.obs_frontend_set_current_preview_scene(scenes[idx])
 
 #########################################
 #
-#  setPreview(idx)
+#  set_transition(idx)
 #   selects the OBS transition with index idx if it exists
 #
 #########################################
 
-def setTransition(idx):
+def set_transition(idx):
     transitions = obs.obs_frontend_get_transitions()
     if idx < len(transitions) and idx >= 0:
         obs.obs_frontend_set_current_transition(transitions[idx])
+        
+#########################################
+#
+#  set_transition_duration(idx)
+#   selects the OBS transition with index idx if it exists
+#
+#########################################
+
+def set_transition_duration(d, idx=-1):
+    trans = None
+    if idx == -1:
+        trans = obs.obs_frontend_get_current_transition()
+    else:
+        transitions = obs.obs_frontend_get_transitions()
+        if idx < len(transitions) and idx >= 0:
+            trans = transitions[idx]
+    if trans != None:
+        obs.obs_transition_enable_fixed(trans, True, d)
    
 #########################################
 #
@@ -462,7 +561,7 @@ def nextScene():
 def transition(idx = -1):
     trans = None
     if idx >= 0 :
-        setTransition(idx)
+        set_transition(idx)
     trans = obs.obs_frontend_get_current_transition()
     mode = obs.OBS_TRANSITION_MODE_AUTO
     duration = 0
@@ -511,7 +610,7 @@ def start_osc():
     global OBS_OSC_PORT
     if oscin == None:
         oscin = OSCListener()
-        oscin.startListening(OBS_OSC_PORT)
+        oscin.start_listening(OBS_OSC_PORT)
         print("OSC started on port " + str(OBS_OSC_PORT))
 
 ######################################### 
@@ -522,7 +621,7 @@ def start_osc():
 def stop_osc():
     global oscin
     if oscin != None:
-        oscin.stopListening()
+        oscin.stop_listening()
         oscin = None
         print("OSC stopped.")
 
