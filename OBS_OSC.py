@@ -469,23 +469,98 @@ def go(idx = -1):
     transition(idx)
     time.sleep(2)
     obs.obs_frontend_set_current_preview_scene(n_scene)
-    
-######################################### 
-#       obspython functions
-######################################### 
 
-def script_update(settings):
+######################################### 
+#   start_osc
+#       create OSCListener if needed and start listening
+######################################### 
+    
+def start_osc():
     global oscin
     global OBS_OSC_PORT
     if oscin == None:
         oscin = OSCListener()
         oscin.startListening(OBS_OSC_PORT)
-        print("OSC Started")
+        print("OSC started on port " + str(OBS_OSC_PORT))
 
-def script_unload():
+######################################### 
+#   stop_osc
+#       if OSCListener exists, stop listening & release
+######################################### 
+   
+def stop_osc():
     global oscin
     if oscin != None:
         oscin.stopListening()
-        while oscin.listenThread != None:
+        while oscin.listen_thread != None:
             time.sleep(0.1)
-        oscin = None        
+        oscin = None
+        print("OSC Stopped")
+
+######################################### 
+#   listen_pressed
+#       callback when start button clicked
+######################################### 
+  
+def listen_pressed(props, prop):
+    start_osc()
+
+######################################### 
+#   stop_pressed
+#       callback when start button clicked
+######################################### 
+
+def stop_pressed(props, prop):
+    stop_osc()
+    
+######################################### 
+#   port_field_changed
+#       callback when the port number is changed
+######################################### 
+        
+def port_field_changed(props, prop_id, settings_data):
+    global oscin
+    global OBS_OSC_PORT
+    pport = obs.obs_data_get_int(settings_data, "osc-port")
+    if pport != 0:
+        OBS_OSC_PORT = pport
+        if oscin != None:
+            stop_osc()
+            print("restarting...")
+            start_osc()
+    else:
+        start_osc()
+    
+######################################### 
+#       obspython functions
+######################################### 
+
+def script_defaults(settings_data):
+    obs.obs_data_set_int(settings_data, "osc-port", 17999)
+
+def script_update(settings):
+    global oscin
+    global OBS_OSC_PORT
+
+    '''
+    if oscin == None:
+        oscin = OSCListener()
+        oscin.startListening(OBS_OSC_PORT)
+        print("OSC Started")'''
+
+def script_unload():
+    stop_osc()
+        
+def script_description():
+    return '''Control OBS preview, transitions and start/stop via OSC.''' 
+    
+def script_properties():
+    props = obs.obs_properties_create()
+    
+    obs.obs_properties_add_button(props, "start-button", "Start OSC", listen_pressed)
+    obs.obs_properties_add_button(props, "stop-button", "Stop OSC", stop_pressed)
+    
+    port_field = obs.obs_properties_add_int(props, "osc-port",  "OSC Port", 1001, 99999, 1)
+    obs.obs_property_set_modified_callback(port_field, port_field_changed)
+    
+    return props
