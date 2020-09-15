@@ -331,8 +331,7 @@ class OSCListener:
                
         if len(parts) > 2:
             if parts[1] == "obs":
-                # these messages require 1.0 float argument
-                # to accomodate push button that send 1.0 when pressed, 0.0 when released
+    
                 
                 if  parts[2] == "source":
                     if len(parts) == 4:
@@ -343,7 +342,10 @@ class OSCListener:
                         if  parts[4] == "volume":
                             if len(args) == 1:
                                 source_volume(parts[3], args[0])
-                
+                        
+                # these messages require 1.0 float argument
+                # to accomodate a push button that sends 1.0 when pressed,
+                # and 0.0 when released
                 elif len(args) == 1:
                     if args[0] == 1.0:
                         if parts[2] == "transition":
@@ -381,9 +383,6 @@ class OSCListener:
                         
                         elif parts[2] == "go":       # /obs/go
                             go()
-                        
-                        elif parts[2] == "test":       # /obs/go
-                            test()
                         
                         elif parts[2] == "recording":
                             if len(parts) == 4:
@@ -569,7 +568,6 @@ def script_defaults(settings_data):
     obs.obs_data_set_int(settings_data, "osc-port", OBS_OSC_PORT)
 
 def script_update(settings):
-    print("script update")
     global OBS_OSC_AUTO_START
     if OBS_OSC_AUTO_START == 1:
         start_osc()
