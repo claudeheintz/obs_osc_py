@@ -145,6 +145,8 @@ class OSCListener:
             
     def stopListening(self):
         self.listening = False
+        self.udpsocket.close()
+        self.udpsocket = None
         
 #########################################
 #
@@ -159,15 +161,17 @@ class OSCListener:
         input = [self.udpsocket]
 
         while self.listening:
-            inputready,outputready,exceptready = select(input,[],[],0)
-            if ( len(inputready) == 1 ):
-                self.data,addr = self.udpsocket.recvfrom(256)
-                self.msglen = len(self.data)
-                self.packetReceived()
+            if self.udpsocket != None and self.udpsocket.fileno() >= 0:
+                inputready,outputready,exceptready = select(input,[],[],0)
+                if ( len(inputready) == 1 ):
+                    self.data,addr = self.udpsocket.recvfrom(256)
+                    self.msglen = len(self.data)
+                    self.packetReceived()
+                else:
+                    time.sleep(0.1)
             else:
-                time.sleep(0.1)
+                self.listening = false
     
-        self.udpsocket.close()
         self.listen_thread = None
 
 #########################################
@@ -227,11 +231,11 @@ class OSCListener:
                             a = struct.unpack_from('>i', self.data, dl)
                             args.append(int(a[0]))
                         elif self.data[tl] == ord('s'):
-                            es = nextZero(dl)
+                            es = self.nextZero(dl)
                             if es <= self.msglen:
                                 a = self.stringFrom(dl)
                                 args.append(a)
-                                dl = nextIndexForIndex(es)
+                                dl = self.nextIndexForIndex(es)
                             else:
                                 done = True
                                 oi = -1
@@ -322,15 +326,26 @@ class OSCListener:
 #########################################
 
     def receivedOSC(self, addressPattern, args):
-        #require 1.0 float argument for push that send 1.0 when pressed, 0.0 when released
-        if len(args) == 1:
-            if args[0] == 1.0:
-                # break addressPattern into parts
-                parts = addressPattern.split('/')
+        # break addressPattern into parts
+        parts = addressPattern.split('/')
+               
+        if len(parts) > 2:
+            if parts[1] == "obs":
+                # these messages require 1.0 float argument
+                # to accomodate push button that send 1.0 when pressed, 0.0 when released
                 
-                if len(parts) > 2:
-                    if parts[1] == "obs":
-                        
+                if  parts[2] == "source":
+                    if len(parts) == 4:
+                        if  parts[3] == "volume":
+                            if len(args) == 2:
+                                source_volume(args[0], args[1])
+                    if len(parts) == 5:
+                        if  parts[4] == "volume":
+                            if len(args) == 1:
+                                source_volume(parts[3], args[0])
+                
+                elif len(args) == 1:
+                    if args[0] == 1.0:
                         if parts[2] == "transition":
                             if len(parts) == 4: 
                                 if parts[3] == "start":
@@ -367,6 +382,9 @@ class OSCListener:
                         elif parts[2] == "go":       # /obs/go
                             go()
                         
+                        elif parts[2] == "test":       # /obs/go
+                            test()
+                        
                         elif parts[2] == "recording":
                             if len(parts) == 4:
                                 if parts[3] == "start":       # /obs/recording/start
@@ -380,7 +398,7 @@ class OSCListener:
                                     obs.obs_frontend_streaming_start()
                                 if parts[3] == "stop":       # /obs/streaming/stop
                                     obs.obs_frontend_streaming_stop()
-
+                                
 ############################################
 #^^^^^^^^^^ end class OSCListener ^^^^^^^^^^
 #
@@ -470,6 +488,19 @@ def go(idx = -1):
     transition(idx)
     time.sleep(2)
     obs.obs_frontend_set_current_preview_scene(n_scene)
+    
+def source_volume(src, volume):
+    #n_scene = nextScene()
+    sources = obs.obs_enum_sources()
+    found = None
+    if sources is not None:
+        for source in sources:
+            source_id = obs.obs_source_get_id(source)
+            name = obs.obs_source_get_name(source)
+            if name == src:
+                found = source
+    if found != None:
+        obs.obs_source_set_volume(found, float(volume))
 
 ######################################### 
 #   start_osc
@@ -493,10 +524,8 @@ def stop_osc():
     global oscin
     if oscin != None:
         oscin.stopListening()
-        while oscin.listen_thread != None:
-            time.sleep(0.1)
         oscin = None
-        print("OSC Stopped")
+        print("OSC stopped.")
 
 ######################################### 
 #   listen_pressed
@@ -530,8 +559,6 @@ def port_field_changed(props, prop_id, settings_data):
             stop_osc()
             print("restarting...")
             start_osc()
-    elif OBS_OSC_AUTO_START == 1:
-        start_osc()
     
 ######################################### 
 #       obspython functions
@@ -542,18 +569,15 @@ def script_defaults(settings_data):
     obs.obs_data_set_int(settings_data, "osc-port", OBS_OSC_PORT)
 
 def script_update(settings):
-    global oscin
-    global OBS_OSC_PORT
-
-    '''
-    if oscin == None:
-        oscin = OSCListener()
-        oscin.startListening(OBS_OSC_PORT)
-        print("OSC Started")'''
+    print("script update")
+    global OBS_OSC_AUTO_START
+    if OBS_OSC_AUTO_START == 1:
+        start_osc()
+        OBS_OSC_AUTO_START = 0  #only first time
 
 def script_unload():
     stop_osc()
-        
+    
 def script_description():
     return '''Control OBS preview, transitions and start/stop via OSC.''' 
     
