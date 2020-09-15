@@ -18,7 +18,8 @@ import struct
 import obspython as obs
 
 
-OBS_OSC_PORT =17999
+OBS_OSC_PORT = 17999
+OBS_OSC_AUTO_START = 1
 
 #########################################
 #
@@ -521,6 +522,7 @@ def stop_pressed(props, prop):
 def port_field_changed(props, prop_id, settings_data):
     global oscin
     global OBS_OSC_PORT
+    global OBS_OSC_AUTO_START
     pport = obs.obs_data_get_int(settings_data, "osc-port")
     if pport != 0:
         OBS_OSC_PORT = pport
@@ -528,7 +530,7 @@ def port_field_changed(props, prop_id, settings_data):
             stop_osc()
             print("restarting...")
             start_osc()
-    else:
+    elif OBS_OSC_AUTO_START == 1:
         start_osc()
     
 ######################################### 
@@ -536,7 +538,8 @@ def port_field_changed(props, prop_id, settings_data):
 ######################################### 
 
 def script_defaults(settings_data):
-    obs.obs_data_set_int(settings_data, "osc-port", 17999)
+    global OBS_OSC_PORT
+    obs.obs_data_set_int(settings_data, "osc-port", OBS_OSC_PORT)
 
 def script_update(settings):
     global oscin
