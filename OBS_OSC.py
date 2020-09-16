@@ -28,45 +28,59 @@ OBS_OSC_AUTO_START = 1
 #   functions from obspython
 #
 #   Note:
-#   all OSC triggers require a 1.0 float argument so that
+#   Most OSC triggers require a 1.0 float argument [1.0] so that
 #   they are compatible with TouchOSC type buttons which
-#   send 1.0 when pressed and 0.0 when released
+#   send 1.0 when pressed and 0.0 when released.
+#
+#   Arguments in the messages reference are noted with brackets []
 #
 #   -------------------------------------------
 #
 #   OBS OSC Messages:
 #
-#   /obs/transition/start
+#
+#   /obs/transition/start  [1.0]
 #       triggers the current transition
 #
-#   /obs/transition/NN/select
+#   /obs/transition/NN/select  [1.0]
 #       selects transition number NN (1 based)
 #       /obs/transition/1/select chooses first transition (index 0 in obspython)
 #
-#   /obs/transition/NN/start
+#   /obs/transition/NN/start  [1.0]
 #       selects and executes transition number NN (1 based index)
 #       /obs/transition/1/start chooses first transition (index 0 in obspython)
 #
-#   /obs/scene/NN/preview
+#   /obs/transition/duration [DD]
+#       sets duration of current transition.  DD is int argument in microseconds.
+#
+#   /obs/transition/NN/duration [DD]
+#       sets duration of transition number NN  (1 based).
+#       DD is int argument in microseconds.
+#
+#   /obs/transition/duration/DD [1.0]
+#       sets duration of current transition.  DD is in microseconds. 
+#       argument is 1.0 float for button trigger
+#
+#   /obs/scene/NN/preview  [1.0]
 #       selects scene number NN  (1 based)
 #       /obs/scene/1/preview sets the preview to the first scene  (index 0 in obspython)
 #
-#   /obs/scene/NN/start
+#   /obs/scene/NN/start  [1.0]
 #       selects scene number NN  (1 based) and then transitions to that scene
 #       following the transition, the next scene is selected for preview
 #
-#   /obs/scene/NN/go
+#   /obs/scene/NN/go  [1.0]
 #       selects scene number NN  (1 based) and then transitions to that scene
 #       following the transition, the next scene is selected for preview
 #
 #       /obs/scene/1/go sets the preview to the first scene  (index 0 in obspython)
 #       following the transition, the second scene is set to preview 
 #
-#   /obs/scene/NN/transition/MM/start
+#   /obs/scene/NN/transition/MM/start  [1.0]
 #       selects scene number NN  (1 based) and then transitions to that scene
 #       using transition number MM (1 based)
 #
-#   /obs/scene/NN/transition/MM/go
+#   /obs/scene/NN/transition/MM/go  [1.0]
 #       selects scene number NN  (1 based) and then transitions to that scene
 #       using transition number MM (1 based)
 #       following the transition, the next scene is selected for preview
@@ -76,21 +90,21 @@ OBS_OSC_AUTO_START = 1
 #       (index 1 in obspython)
 #       following the transition, the third scene is set to preview 
 #
-#   /obs/go
+#   /obs/go  [1.0]
 #       transitions to the current previewed scene using the current transition
 #       following the transition, the scene following the former preview scene
 #       in the scene list is selected for preview
 #
-#   /obs/recording/start
+#   /obs/recording/start  [1.0]
 #       starts recording
 #
-#   /obs/recording/stop
+#   /obs/recording/stop  [1.0]
 #       stops recording
 #
-#   /obs/streaming/start
+#   /obs/streaming/start  [1.0]
 #       starts streaming
 #
-#   /obs/streaming/stop
+#   /obs/streaming/stop  [1.0]
 #       stops streaming
 #
 #########################################
